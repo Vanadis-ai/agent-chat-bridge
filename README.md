@@ -145,6 +145,25 @@ The `permission_mode` field controls how Claude Code handles tool approvals:
 | `/stop`   | Cancel active request              |
 | `/status` | Show active request and session    |
 
+## Running as a macOS service
+
+Install as a launchd service to auto-start on login and restart on crash:
+
+```bash
+./scripts/service.sh install    # build, install to ~/.local/bin, create launchd plist
+./scripts/service.sh reload     # rebuild binary, restart (picks up config changes)
+./scripts/service.sh status     # show service status
+./scripts/service.sh logs       # tail service logs
+./scripts/service.sh uninstall  # stop service, remove plist and binary
+```
+
+Locations:
+- Binary: `~/.local/bin/agent-chat-bridge`
+- Config: `~/.config/agent-chat-bridge/config.yaml` (copied from `configs/config.yaml`)
+- Logs: `~/.local/share/agent-chat-bridge/logs/`
+
+Edit `configs/config.yaml` in the project, then run `reload` to apply.
+
 ## Development
 
 ```bash

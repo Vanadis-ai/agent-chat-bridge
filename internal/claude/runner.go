@@ -104,10 +104,9 @@ func handleMessage(msg claudecode.Message, deltaCh chan<- StreamDelta, current *
 			deltaCh <- StreamDelta{Text: text}
 		}
 	case *claudecode.AssistantMessage:
-		text := extractAssistantText(m)
-		if text != "" {
-			deltaCh <- StreamDelta{Text: text}
-		}
+		// Intentionally not sending to deltaCh here.
+		// With partial streaming enabled, StreamEvent deltas already
+		// contain the full text. AssistantMessage would duplicate it.
 	case *claudecode.ResultMessage:
 		r := &RunResult{
 			SessionID: m.SessionID,
@@ -211,12 +210,12 @@ func buildAgentOptions(agent *AgentDef) []claudecode.Option {
 
 	// Activate the agent for this session.
 	name := agent.Name
-	extraArgs := map[string]*string{"--agent": &name}
+	extraArgs := map[string]*string{"agent": &name}
 
 	// Empty tools list means disable all tools via --tools "".
 	if agent.Tools != nil && len(agent.Tools) == 0 {
 		noTools := ""
-		extraArgs["--tools"] = &noTools
+		extraArgs["tools"] = &noTools
 	}
 
 	opts = append(opts, claudecode.WithExtraArgs(extraArgs))
