@@ -1,0 +1,16 @@
+claude:
+  binary: "/usr/local/bin/claude"
+  timeout_minutes: 10
+  max_concurrent: 5
+
+bots:
+  mybot:
+    token: "placeholder"
+    model: "sonnet"
+    permission_mode: "bypassPermissions"
+    append_system_prompt: "You are a helpful assistant."
+    users:
+      123456789:
+        working_dir: "/home/user/projects/mybot"
+        voice_dir: "voice_inbox"
+        files_dir: "files_inbox"

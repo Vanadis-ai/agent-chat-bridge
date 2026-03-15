@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "config.yaml", "path to config file")
+	configPath := flag.String("config", "configs/config.yaml", "path to config file")
 	pidFile := flag.String("pidfile", "", "write PID to this file")
 	debug := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()

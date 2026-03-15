@@ -2,6 +2,7 @@
 
 PIDFILE := /tmp/telebridge.pid
 LOGFILE := /tmp/telebridge.log
+CONFIG := configs/config.yaml
 
 build:
 	go build -o telebridge ./cmd/telebridge
@@ -27,7 +28,7 @@ stop:
 	@echo "Telebridge stopped"
 
 start: build stop
-	@nohup sh -c 'unset CLAUDECODE && export $$(cat .env | xargs) && exec ./telebridge --pidfile $(PIDFILE) --debug' > $(LOGFILE) 2>&1 &
+	@nohup sh -c 'unset CLAUDECODE && export $$(cat .env | xargs) && exec ./telebridge --config $(CONFIG) --pidfile $(PIDFILE) --debug' > $(LOGFILE) 2>&1 &
 	@sleep 2
 	@if [ -f $(PIDFILE) ] && kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
 		echo "Telebridge started (PID $$(cat $(PIDFILE)))"; \
@@ -39,7 +40,7 @@ start: build stop
 restart: start
 
 run: build
-	export $$(cat .env | xargs) && exec ./telebridge
+	export $$(cat .env | xargs) && exec ./telebridge --config $(CONFIG)
 
 logs:
 	@tail -f $(LOGFILE)
