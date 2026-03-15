@@ -71,6 +71,17 @@ func validateBot(name string, bot *BotConfig) error {
 	if bot.Token == "" {
 		return fmt.Errorf("bot %q: token is required", name)
 	}
+	if bot.Agent != nil && bot.AppendSystemPrompt != "" {
+		return fmt.Errorf(
+			"bot %q: agent and append_system_prompt are mutually exclusive",
+			name,
+		)
+	}
+	if bot.Agent != nil {
+		if err := validateAgent(name, bot.Agent); err != nil {
+			return err
+		}
+	}
 	if len(bot.Users) == 0 {
 		return fmt.Errorf("bot %q: at least one user is required", name)
 	}
@@ -80,6 +91,21 @@ func validateBot(name string, bot *BotConfig) error {
 				"bot %q, user %d: working_dir is required", name, uid,
 			)
 		}
+	}
+	return nil
+}
+
+func validateAgent(botName string, agent *AgentConfig) error {
+	if agent.Name == "" {
+		return fmt.Errorf("bot %q: agent.name is required", botName)
+	}
+	if agent.Description == "" {
+		return fmt.Errorf(
+			"bot %q: agent.description is required", botName,
+		)
+	}
+	if agent.Prompt == "" {
+		return fmt.Errorf("bot %q: agent.prompt is required", botName)
 	}
 	return nil
 }

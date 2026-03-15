@@ -6,13 +6,13 @@ jira_instance: vanadis
 
 ## Project
 
-Agent Chat Bridge -- multi-bot Telegram-to-Claude Code bridge. A single process runs multiple Telegram bots, each with its own personality (system prompt), model, and user whitelist. Messages (text, voice, audio, documents, photos, videos) are forwarded to Claude Code CLI; responses stream back via progressive Telegram message edits.
+Agent Chat Bridge -- multi-bot Telegram-to-Claude Code bridge. A single process runs multiple Telegram bots, each with its own personality (system prompt or agent mode), model, tool restrictions, and user whitelist. Messages (text, voice, audio, documents, photos, videos) are forwarded to Claude Code CLI; responses stream back via progressive Telegram message edits.
 
 ## Build & Run
 
 ```bash
 make build          # go build -o agent-chat-bridge ./cmd/agent-chat-bridge
-make run            # build + run foreground (loads .env)
+make run            # build + run foreground
 make start          # build + run background (nohup, pidfile, debug)
 make stop           # graceful stop via pidfile
 make restart        # stop + start
@@ -55,16 +55,22 @@ specs/                           -- spec.md (functional), ops.md (ops), tests.md
 ### Configuration
 
 - `configs/config.yaml.example` -- template, tracked in git
-- `configs/config.yaml` -- real config with local paths and bot settings, gitignored
-- `.env.example` -- env var template, tracked in git
-- `.env` -- real tokens, gitignored
+- `configs/config.yaml` -- real config with tokens and local paths, gitignored
 
-Config defines `claude` (binary path, timeout, max_concurrent) and `telegram_bots` map (token, model, permission_mode, system prompt, users with working_dir). Tokens can be overridden via `AGENT_CHAT_BRIDGE_<BOT_NAME>_TOKEN` env vars.
+Config defines `claude` (binary path, timeout, max_concurrent) and `telegram_bots` map. Each bot can use either `append_system_prompt` (simple mode) or `agent` (agent mode with tool restrictions). These are mutually exclusive.
+
+### Agent mode
+
+A bot with `agent` defined launches Claude in a constrained agent mode:
+- `agent.name` / `agent.description` / `agent.prompt` -- agent identity and system prompt
+- `agent.tools` -- tool restrictions: nil = defaults, `[]` = no tools, `[Read, Bash]` = only listed
+
+Translates to Claude CLI flags `--agents` (definition) + `--agent` (activation) + `--tools` (restrictions).
 
 ## Dependencies
 
 - `github.com/go-telegram-bot-api/telegram-bot-api/v5` -- Telegram API client
-- `github.com/severity1/claude-agent-sdk-go` -- Claude Code CLI SDK (streaming)
+- `github.com/severity1/claude-agent-sdk-go` -- Claude Code CLI SDK (streaming, agent definitions)
 - `gopkg.in/yaml.v3` -- config parsing
 
 ## Testing patterns

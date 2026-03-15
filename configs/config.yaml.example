@@ -4,13 +4,28 @@ claude:
   max_concurrent: 5
 
 telegram_bots:
-  mybot:
-    token: "placeholder"
-    model: "sonnet"
+  # Standard bot with system prompt and full tool access
+  assistant:
+    token: "123456:ABC-your-bot-token"
+    model: "opus"
     permission_mode: "bypassPermissions"
-    append_system_prompt: "You are a helpful assistant."
+    append_system_prompt: "You work with an Obsidian vault."
     users:
       123456789:
-        working_dir: "/home/user/projects/mybot"
+        working_dir: "/home/user/vault"
         voice_dir: "voice_inbox"
         files_dir: "files_inbox"
+
+  # Agent bot with restricted tools
+  translator:
+    token: "654321:DEF-your-bot-token"
+    model: "sonnet"
+    permission_mode: "plan"
+    agent:
+      name: "translator"
+      description: "Translates text between languages"
+      prompt: "You are a translator. Only translate the text provided by the user."
+      tools: []  # empty = all tools disabled
+    users:
+      123456789:
+        working_dir: "/home/user/translations"

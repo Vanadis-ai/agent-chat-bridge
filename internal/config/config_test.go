@@ -152,17 +152,6 @@ func TestInvalidYAML(t *testing.T) {
 	}
 }
 
-func TestEnvVarOverride(t *testing.T) {
-	t.Setenv("AGENT_CHAT_BRIDGE_OBSIDIAN_TOKEN", "override_token")
-	cfg, err := Load(writeConfig(t, validMinimalYAML()))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.TelegramBots["obsidian"].Token != "override_token" {
-		t.Errorf("token = %q, want override_token", cfg.TelegramBots["obsidian"].Token)
-	}
-}
-
 func TestRelativePathResolution(t *testing.T) {
 	yaml := `
 claude:
