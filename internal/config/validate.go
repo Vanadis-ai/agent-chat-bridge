@@ -12,7 +12,7 @@ func validate(cfg *Config) error {
 	if err := validateClaude(&cfg.Claude); err != nil {
 		return err
 	}
-	return validateBots(cfg.Bots)
+	return validateBots(cfg.TelegramBots)
 }
 
 func validateClaude(c *ClaudeConfig) error {
@@ -89,7 +89,7 @@ func ValidatePaths(cfg *Config) error {
 	if err := checkFileExists(cfg.Claude.Binary, "claude.binary"); err != nil {
 		return err
 	}
-	for name, bot := range cfg.Bots {
+	for name, bot := range cfg.TelegramBots {
 		for uid, u := range bot.Users {
 			label := fmt.Sprintf("bot %q, user %d: working_dir", name, uid)
 			if err := checkDirExists(u.WorkingDir, label); err != nil {

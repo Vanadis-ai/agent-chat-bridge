@@ -3,7 +3,7 @@ claude:
   timeout_minutes: 10
   max_concurrent: 5
 
-bots:
+telegram_bots:
   mybot:
     token: "placeholder"
     model: "sonnet"

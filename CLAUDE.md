@@ -6,17 +6,17 @@ jira_instance: vanadis
 
 ## Project
 
-Telebridge -- multi-bot Telegram-to-Claude Code bridge. A single process runs multiple Telegram bots, each with its own personality (system prompt), model, and user whitelist. Messages (text, voice, audio, documents, photos, videos) are forwarded to Claude Code CLI; responses stream back via progressive Telegram message edits.
+Agent Chat Bridge -- multi-bot Telegram-to-Claude Code bridge. A single process runs multiple Telegram bots, each with its own personality (system prompt), model, and user whitelist. Messages (text, voice, audio, documents, photos, videos) are forwarded to Claude Code CLI; responses stream back via progressive Telegram message edits.
 
 ## Build & Run
 
 ```bash
-make build          # go build -o telebridge ./cmd/telebridge
+make build          # go build -o agent-chat-bridge ./cmd/agent-chat-bridge
 make run            # build + run foreground (loads .env)
 make start          # build + run background (nohup, pidfile, debug)
 make stop           # graceful stop via pidfile
 make restart        # stop + start
-make logs           # tail -f /tmp/telebridge.log
+make logs           # tail -f /tmp/agent-chat-bridge.log
 ```
 
 ## Test & Lint
@@ -36,7 +36,7 @@ go test -run TestName ./internal/package/...
 ## Architecture
 
 ```
-cmd/telebridge/main.go          -- entry point, flag parsing, lifecycle
+cmd/agent-chat-bridge/main.go   -- entry point, flag parsing, lifecycle
 internal/
   bot/                           -- Telegram bot: handlers, commands, auth, streaming, file downloads
   claude/                        -- Claude CLI SDK wrapper: runner (streaming), session persistence
@@ -59,7 +59,7 @@ specs/                           -- spec.md (functional), ops.md (ops), tests.md
 - `.env.example` -- env var template, tracked in git
 - `.env` -- real tokens, gitignored
 
-Config defines `claude` (binary path, timeout, max_concurrent) and `bots` map (token, model, permission_mode, system prompt, users with working_dir). Tokens can be overridden via `TELEBRIDGE_<BOT_NAME>_TOKEN` env vars.
+Config defines `claude` (binary path, timeout, max_concurrent) and `telegram_bots` map (token, model, permission_mode, system prompt, users with working_dir). Tokens can be overridden via `AGENT_CHAT_BRIDGE_<BOT_NAME>_TOKEN` env vars.
 
 ## Dependencies
 

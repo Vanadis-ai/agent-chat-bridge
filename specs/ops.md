@@ -1,4 +1,4 @@
-# Telebridge Operations Specification
+# Agent Chat Bridge Operations Specification
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@
 
 # 1. Makefile
 
-All operations go through `make`. The Makefile lives at `telebridge/Makefile`.
+All operations go through `make`. The Makefile lives at the project root.
 
 ## Targets
 
@@ -20,10 +20,10 @@ Default target. Compiles the binary.
 
 ```makefile
 build:
-	go build -o telebridge ./cmd/telebridge
+	go build -o agent-chat-bridge ./cmd/agent-chat-bridge
 ```
 
-Output: `telebridge` binary in the project root.
+Output: `agent-chat-bridge` binary in the project root.
 
 ### make run
 
@@ -31,7 +31,7 @@ Builds and runs with default config (`config.yaml` in current directory).
 
 ```makefile
 run: build
-	./telebridge
+	./agent-chat-bridge
 ```
 
 ### make test
@@ -84,7 +84,7 @@ Removes build artifacts.
 
 ```makefile
 clean:
-	rm -f telebridge
+	rm -f agent-chat-bridge
 ```
 
 ### make docker-build
@@ -93,7 +93,7 @@ Builds Docker image.
 
 ```makefile
 docker-build:
-	docker build -t telebridge .
+	docker build -t agent-chat-bridge .
 ```
 
 ### make docker-run
@@ -104,10 +104,10 @@ Runs Docker container with host network and required volume mounts.
 docker-run:
 	docker run --rm \
 		--network host \
-		-v $(PWD)/config.yaml:/etc/telebridge/config.yaml:ro \
+		-v $(PWD)/config.yaml:/etc/agent-chat-bridge/config.yaml:ro \
 		-v $(CLAUDE_BINARY):/usr/local/bin/claude:ro \
 		-v $(HOME)/.claude:/root/.claude:ro \
-		telebridge --config /etc/telebridge/config.yaml
+		agent-chat-bridge --config /etc/agent-chat-bridge/config.yaml
 ```
 
 Variables `CLAUDE_BINARY` defaults to the path from config. User overrides via `make docker-run CLAUDE_BINARY=/path/to/claude`.
@@ -126,7 +126,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /telebridge ./cmd/telebridge
+RUN CGO_ENABLED=0 GOOS=linux go build -o /agent-chat-bridge ./cmd/agent-chat-bridge
 ```
 
 - Alpine base for minimal build image
@@ -137,8 +137,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /telebridge ./cmd/telebridge
 
 ```dockerfile
 FROM gcr.io/distroless/static-debian12
-COPY --from=builder /telebridge /telebridge
-ENTRYPOINT ["/telebridge"]
+COPY --from=builder /agent-chat-bridge /agent-chat-bridge
+ENTRYPOINT ["/agent-chat-bridge"]
 ```
 
 - Distroless base: no shell, no package manager, minimal attack surface
@@ -148,7 +148,7 @@ ENTRYPOINT ["/telebridge"]
 
 | Mount | Container path | Purpose |
 |-------|---------------|---------|
-| config.yaml | /etc/telebridge/config.yaml | Application configuration |
+| config.yaml | /etc/agent-chat-bridge/config.yaml | Application configuration |
 | claude binary | /usr/local/bin/claude | Claude Code CLI executable |
 | ~/.claude | /root/.claude | Claude CLI config, auth, session history |
 | working directories | same paths as in config | User project directories (read/write) |
@@ -165,12 +165,12 @@ ENTRYPOINT ["/telebridge"]
 ```sh
 docker run --rm \
   --network host \
-  -v /Users/alter/telebridge/config.yaml:/etc/telebridge/config.yaml:ro \
+  -v /Users/alter/agent-chat-bridge/config.yaml:/etc/agent-chat-bridge/config.yaml:ro \
   -v /Users/alter/.local/bin/claude:/usr/local/bin/claude:ro \
   -v /Users/alter/.claude:/root/.claude:ro \
   -v /Users/alter/obsidian-vault:/Users/alter/obsidian-vault \
   -v /Users/alter/translations:/Users/alter/translations \
-  telebridge --config /etc/telebridge/config.yaml
+  agent-chat-bridge --config /etc/agent-chat-bridge/config.yaml
 ```
 
 ---
@@ -180,14 +180,14 @@ docker run --rm \
 ## Build
 
 ```sh
-cd telebridge
+cd agent-chat-bridge
 make build
 ```
 
 ## Run with default config
 
 ```sh
-./telebridge
+./agent-chat-bridge
 ```
 
 Looks for `config.yaml` in current directory.
@@ -195,25 +195,25 @@ Looks for `config.yaml` in current directory.
 ## Run with custom config
 
 ```sh
-./telebridge --config /path/to/config.yaml
+./agent-chat-bridge --config /path/to/config.yaml
 ```
 
 ## Run with environment variable token override
 
 ```sh
-TELEBRIDGE_OBSIDIAN_TOKEN=bot123:secret ./telebridge
+AGENT_CHAT_BRIDGE_OBSIDIAN_TOKEN=bot123:secret ./agent-chat-bridge
 ```
 
 ## Background run with log file
 
 ```sh
-./telebridge 2>telebridge.log &
+./agent-chat-bridge 2>agent-chat-bridge.log &
 ```
 
 ## Follow logs
 
 ```sh
-tail -f telebridge.log | jq .
+tail -f agent-chat-bridge.log | jq .
 ```
 
 Logs are JSON (slog), `jq` makes them readable.
@@ -221,7 +221,7 @@ Logs are JSON (slog), `jq` makes them readable.
 ## Stop
 
 ```sh
-kill $(pgrep telebridge)
+kill $(pgrep agent-chat-bridge)
 ```
 
 Sends SIGTERM, triggers graceful shutdown (see spec.md section 3).
@@ -271,7 +271,7 @@ Minimal working config:
 claude:
   binary: "/Users/alter/.local/bin/claude"
 
-bots:
+telegram_bots:
   assistant:
     token: "123456:ABC-DEF"
     users:
@@ -294,7 +294,7 @@ All optional fields will use defaults:
 
 No HTTP health endpoint (no web server). Health is determined by:
 
-- **Process is running**: `pgrep telebridge` returns PID
+- **Process is running**: `pgrep agent-chat-bridge` returns PID
 - **Logs are flowing**: recent entries in stderr/log file
 - **Telegram polling active**: INFO log entry at startup with bot username for each bot
 
@@ -306,8 +306,8 @@ If the process crashes, it must be restarted manually (or by a process superviso
 
 ### Bot does not respond to messages
 
-1. Check process is running: `pgrep telebridge`
-2. Check logs for errors: `tail -20 telebridge.log | jq .`
+1. Check process is running: `pgrep agent-chat-bridge`
+2. Check logs for errors: `tail -20 agent-chat-bridge.log | jq .`
 3. Verify bot token is correct (Telegram API auth failure logged at startup)
 4. Verify user ID is in config (unauthorized attempts logged at WARN)
 5. Verify bot is not in a group chat (private chat only)

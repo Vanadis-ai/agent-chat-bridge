@@ -1,4 +1,4 @@
-# Agent Chat Bridge (Telebridge)
+# Agent Chat Bridge
 
 Multi-bot Telegram-to-Claude Code bridge. A single process runs multiple Telegram bots, each acting as a separate agent with its own personality, model, and user whitelist.
 
@@ -24,7 +24,7 @@ Each Telegram bot receives private messages from authorized users. Text, voice, 
 
 3. Edit `.env` -- set real Telegram bot tokens:
    ```
-   TELEBRIDGE_MYBOT_TOKEN=123456:ABC-DEF...
+   AGENT_CHAT_BRIDGE_MYBOT_TOKEN=123456:ABC-DEF...
    ```
 
 4. Build and run:
@@ -34,12 +34,12 @@ Each Telegram bot receives private messages from authorized users. Text, voice, 
 
 ## Configuration
 
-See `config.example.yaml` for the full structure. Key points:
+See `configs/config.yaml.example` for the full structure. Key points:
 
 - `claude.binary` -- path to Claude Code CLI binary (required)
 - Each bot has a `token`, optional `model`, `permission_mode`, and `append_system_prompt`
 - Each user is identified by Telegram user ID and needs a `working_dir`
-- Bot tokens can be overridden via environment variables: `TELEBRIDGE_<BOTNAME>_TOKEN`
+- Bot tokens can be overridden via environment variables: `AGENT_CHAT_BRIDGE_<BOTNAME>_TOKEN`
 
 ## Bot commands
 

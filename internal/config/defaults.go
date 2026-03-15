@@ -10,7 +10,7 @@ func applyDefaults(cfg *Config) {
 		cfg.Claude.MaxConcurrent = 5
 	}
 
-	for name, bot := range cfg.Bots {
+	for name, bot := range cfg.TelegramBots {
 		if bot.PermissionMode == "" {
 			bot.PermissionMode = "bypassPermissions"
 		}
@@ -18,7 +18,7 @@ func applyDefaults(cfg *Config) {
 			bot.Sessions = name + "_sessions.json"
 		}
 		applyUserDefaults(bot.Users)
-		cfg.Bots[name] = bot
+		cfg.TelegramBots[name] = bot
 	}
 }
 
@@ -34,7 +34,7 @@ func applyUserDefaults(users map[int64]*UserConfig) {
 }
 
 func resolvePaths(cfg *Config) {
-	for _, bot := range cfg.Bots {
+	for _, bot := range cfg.TelegramBots {
 		for _, u := range bot.Users {
 			u.VoiceDir = resolveDir(u.WorkingDir, u.VoiceDir)
 			u.FilesDir = resolveDir(u.WorkingDir, u.FilesDir)

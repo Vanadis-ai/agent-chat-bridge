@@ -11,7 +11,7 @@ import (
 // Config is the top-level application configuration.
 type Config struct {
 	Claude ClaudeConfig         `yaml:"claude"`
-	Bots   map[string]BotConfig `yaml:"bots"`
+	TelegramBots map[string]BotConfig `yaml:"telegram_bots"`
 }
 
 // ClaudeConfig holds settings for the Claude CLI binary.
@@ -62,11 +62,11 @@ func Load(path string) (*Config, error) {
 }
 
 func applyEnvOverrides(cfg *Config) {
-	for name, bot := range cfg.Bots {
-		envKey := "TELEBRIDGE_" + strings.ToUpper(name) + "_TOKEN"
+	for name, bot := range cfg.TelegramBots {
+		envKey := "AGENT_CHAT_BRIDGE_" + strings.ToUpper(name) + "_TOKEN"
 		if val := os.Getenv(envKey); val != "" {
 			bot.Token = val
-			cfg.Bots[name] = bot
+			cfg.TelegramBots[name] = bot
 		}
 	}
 }

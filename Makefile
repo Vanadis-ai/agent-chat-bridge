@@ -1,17 +1,18 @@
 .PHONY: build run stop start restart test test-race test-all lint clean logs
 
-PIDFILE := /tmp/telebridge.pid
-LOGFILE := /tmp/telebridge.log
+BINARY := agent-chat-bridge
+PIDFILE := /tmp/$(BINARY).pid
+LOGFILE := /tmp/$(BINARY).log
 CONFIG := configs/config.yaml
 
 build:
-	go build -o telebridge ./cmd/telebridge
+	go build -o $(BINARY) ./cmd/agent-chat-bridge
 
 stop:
 	@if [ -f $(PIDFILE) ]; then \
 		pid=$$(cat $(PIDFILE)); \
 		if kill -0 $$pid 2>/dev/null; then \
-			echo "Stopping telebridge (PID $$pid)"; \
+			echo "Stopping $(BINARY) (PID $$pid)"; \
 			kill $$pid; \
 			for i in 1 2 3 4 5; do \
 				kill -0 $$pid 2>/dev/null || break; \
@@ -25,22 +26,22 @@ stop:
 		fi; \
 		rm -f $(PIDFILE); \
 	fi
-	@echo "Telebridge stopped"
+	@echo "$(BINARY) stopped"
 
 start: build stop
-	@nohup sh -c 'unset CLAUDECODE && export $$(cat .env | xargs) && exec ./telebridge --config $(CONFIG) --pidfile $(PIDFILE) --debug' > $(LOGFILE) 2>&1 &
+	@nohup sh -c 'unset CLAUDECODE && export $$(cat .env | xargs) && exec ./$(BINARY) --config $(CONFIG) --pidfile $(PIDFILE) --debug' > $(LOGFILE) 2>&1 &
 	@sleep 2
 	@if [ -f $(PIDFILE) ] && kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
-		echo "Telebridge started (PID $$(cat $(PIDFILE)))"; \
+		echo "$(BINARY) started (PID $$(cat $(PIDFILE)))"; \
 	else \
-		echo "ERROR: telebridge failed to start. Check $(LOGFILE)"; \
+		echo "ERROR: $(BINARY) failed to start. Check $(LOGFILE)"; \
 		exit 1; \
 	fi
 
 restart: start
 
 run: build
-	export $$(cat .env | xargs) && exec ./telebridge --config $(CONFIG)
+	export $$(cat .env | xargs) && exec ./$(BINARY) --config $(CONFIG)
 
 logs:
 	@tail -f $(LOGFILE)
@@ -57,4 +58,4 @@ lint:
 	go vet ./...
 
 clean:
-	rm -f telebridge
+	rm -f $(BINARY)

@@ -8,7 +8,7 @@ import (
 func TestMissingClaudeBinary(t *testing.T) {
 	yaml := `
 claude: {}
-bots:
+telegram_bots:
   test:
     token: "tok"
     users:
@@ -28,7 +28,7 @@ func TestEmptyBots(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots: {}
+telegram_bots: {}
 `
 	_, err := Load(writeConfig(t, yaml))
 	if err == nil {
@@ -43,7 +43,7 @@ func TestBotWithoutToken(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   mybot:
     users:
       1:
@@ -62,7 +62,7 @@ func TestBotWithoutUsers(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   mybot:
     token: "tok"
     users: {}
@@ -80,7 +80,7 @@ func TestUserWithoutWorkingDir(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   mybot:
     token: "tok"
     users:
@@ -107,7 +107,7 @@ func TestDuplicateTokens(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   bot_a:
     token: "same_token"
     users:
@@ -132,7 +132,7 @@ func TestInvalidBotName(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   My-Bot:
     token: "tok"
     users:

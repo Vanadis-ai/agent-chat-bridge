@@ -1,4 +1,4 @@
-# Telebridge Test Specification
+# Agent Chat Bridge Test Specification
 
 ## Conventions
 
@@ -40,7 +40,7 @@ Package: `internal/config`
 - **THEN** returns error mentioning `claude.binary`
 
 ### Test: Empty bots section
-- **GIVEN** a YAML with `bots: {}`
+- **GIVEN** a YAML with `telegram_bots: {}`
 - **WHEN** `Load()` is called
 - **THEN** returns error indicating at least one bot is required
 
@@ -70,7 +70,7 @@ Package: `internal/config`
 - **THEN** returns error indicating bot name must match `[a-z][a-z0-9_]*`
 
 ### Test: Environment variable override for token
-- **GIVEN** a valid config and env var `TELEBRIDGE_OBSIDIAN_TOKEN=override_token`
+- **GIVEN** a valid config and env var `AGENT_CHAT_BRIDGE_OBSIDIAN_TOKEN=override_token`
 - **WHEN** `Load()` is called
 - **THEN** bot "obsidian" has token "override_token"
 

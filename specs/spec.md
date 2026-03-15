@@ -1,4 +1,4 @@
-# Telebridge Specification
+# Agent Chat Bridge Specification
 
 ## Purpose
 
@@ -37,7 +37,7 @@ claude:
   timeout_minutes: 10                       # OPTIONAL - per-request timeout, default: 10
   max_concurrent: 5                         # OPTIONAL - global max concurrent Claude processes, default: 5
 
-bots:
+telegram_bots:
   obsidian:                                  # bot name (alphanumeric + underscore)
     token: "BOT_TOKEN_1"                     # REQUIRED - Telegram Bot API token
     model: "opus"                            # OPTIONAL - model alias or full name
@@ -66,7 +66,7 @@ bots:
 The `bots` section defines one or more Telegram bots. Each bot has a unique name (used as identifier in logs and environment variable overrides), its own Telegram token, Claude CLI settings, and a `users` map. The `users` map within each bot serves a dual purpose: it defines the whitelist of authorized Telegram user IDs and configures per-user settings. Each user MUST have a `working_dir`. The `voice_dir` and `files_dir` are optional -- when omitted, they default to `voice_inbox` and `files_inbox` subdirectories inside the user's `working_dir`. Both relative (resolved from `working_dir`) and absolute paths are supported.
 
 ### Scenario: Environment variable override for token
-- **GIVEN** the environment variable `TELEBRIDGE_OBSIDIAN_TOKEN` is set (pattern: `TELEBRIDGE_<BOT_NAME>_TOKEN`, uppercased)
+- **GIVEN** the environment variable `AGENT_CHAT_BRIDGE_OBSIDIAN_TOKEN` is set (pattern: `AGENT_CHAT_BRIDGE_<BOT_NAME>_TOKEN`, uppercased)
 - **WHEN** the application loads configuration
 - **THEN** the environment variable value SHALL override the `bots.obsidian.token` from the YAML file
 
@@ -218,7 +218,7 @@ Each bot SHALL support the `/start` command as the initial greeting.
 ### Scenario: Authorized user sends /start
 - **GIVEN** user is in this bot's `users`
 - **WHEN** they send `/start`
-- **THEN** the bot responds with: "Telebridge active. Send a message to start a conversation with Claude. Use /help for available commands."
+- **THEN** the bot responds with: "Agent Chat Bridge active. Send a message to start a conversation with Claude. Use /help for available commands."
 
 ### Scenario: Authorized user sends /start with existing session
 - **GIVEN** user already has an active session with this bot

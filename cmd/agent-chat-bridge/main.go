@@ -50,7 +50,7 @@ func main() {
 func startBots(ctx context.Context, cfg *config.Config) []*bot.Bot {
 	var bots []*bot.Bot
 
-	for name, botCfg := range cfg.Bots {
+	for name, botCfg := range cfg.TelegramBots {
 		api, err := tgbotapi.NewBotAPI(botCfg.Token)
 		if err != nil {
 			slog.Error("failed to create bot API", "bot", name, "error", err)
