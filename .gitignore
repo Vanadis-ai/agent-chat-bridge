@@ -1,0 +1,5 @@
+/agent-chat-bridge
+/telebridge
+.env
+*.json
+!package.json
