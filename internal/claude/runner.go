@@ -10,16 +10,25 @@ import (
 	claudecode "github.com/severity1/claude-agent-sdk-go"
 )
 
+// AgentDef holds agent definition passed to Claude CLI.
+type AgentDef struct {
+	Name        string
+	Description string
+	Prompt      string
+	Tools       []string // nil = default tools, empty = no tools, non-empty = only listed
+}
+
 // RunConfig holds parameters for a single Claude invocation.
 type RunConfig struct {
-	Prompt           string
-	WorkingDir       string
-	Model            string
-	PermissionMode   string
-	SystemPrompt     string
-	SessionID        string
-	CLIPath          string
-	TimeoutMinutes   int
+	Prompt         string
+	WorkingDir     string
+	Model          string
+	PermissionMode string
+	SystemPrompt   string
+	SessionID      string
+	CLIPath        string
+	TimeoutMinutes int
+	Agent          *AgentDef
 }
 
 // StreamDelta is a chunk of text emitted during streaming.
@@ -171,6 +180,9 @@ func buildOptions(cfg RunConfig) []claudecode.Option {
 	if cfg.SessionID != "" {
 		opts = append(opts, claudecode.WithResume(cfg.SessionID))
 	}
+	if cfg.Agent != nil {
+		opts = append(opts, buildAgentOptions(cfg.Agent)...)
+	}
 
 	pm := mapPermissionMode(cfg.PermissionMode)
 	opts = append(opts, claudecode.WithPermissionMode(pm))
@@ -182,6 +194,32 @@ func buildOptions(cfg RunConfig) []claudecode.Option {
 		slog.Debug("claude stderr", "line", line)
 	}))
 
+	return opts
+}
+
+func buildAgentOptions(agent *AgentDef) []claudecode.Option {
+	var opts []claudecode.Option
+
+	def := claudecode.AgentDefinition{
+		Description: agent.Description,
+		Prompt:      agent.Prompt,
+	}
+	if len(agent.Tools) > 0 {
+		def.Tools = agent.Tools
+	}
+	opts = append(opts, claudecode.WithAgent(agent.Name, def))
+
+	// Activate the agent for this session.
+	name := agent.Name
+	extraArgs := map[string]*string{"--agent": &name}
+
+	// Empty tools list means disable all tools via --tools "".
+	if agent.Tools != nil && len(agent.Tools) == 0 {
+		noTools := ""
+		extraArgs["--tools"] = &noTools
+	}
+
+	opts = append(opts, claudecode.WithExtraArgs(extraArgs))
 	return opts
 }
 

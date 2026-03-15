@@ -12,7 +12,7 @@ func validate(cfg *Config) error {
 	if err := validateClaude(&cfg.Claude); err != nil {
 		return err
 	}
-	return validateBots(cfg.Bots)
+	return validateBots(cfg.TelegramBots)
 }
 
 func validateClaude(c *ClaudeConfig) error {
@@ -71,6 +71,17 @@ func validateBot(name string, bot *BotConfig) error {
 	if bot.Token == "" {
 		return fmt.Errorf("bot %q: token is required", name)
 	}
+	if bot.Agent != nil && bot.AppendSystemPrompt != "" {
+		return fmt.Errorf(
+			"bot %q: agent and append_system_prompt are mutually exclusive",
+			name,
+		)
+	}
+	if bot.Agent != nil {
+		if err := validateAgent(name, bot.Agent); err != nil {
+			return err
+		}
+	}
 	if len(bot.Users) == 0 {
 		return fmt.Errorf("bot %q: at least one user is required", name)
 	}
@@ -84,12 +95,27 @@ func validateBot(name string, bot *BotConfig) error {
 	return nil
 }
 
+func validateAgent(botName string, agent *AgentConfig) error {
+	if agent.Name == "" {
+		return fmt.Errorf("bot %q: agent.name is required", botName)
+	}
+	if agent.Description == "" {
+		return fmt.Errorf(
+			"bot %q: agent.description is required", botName,
+		)
+	}
+	if agent.Prompt == "" {
+		return fmt.Errorf("bot %q: agent.prompt is required", botName)
+	}
+	return nil
+}
+
 // ValidatePaths checks that filesystem paths actually exist.
 func ValidatePaths(cfg *Config) error {
 	if err := checkFileExists(cfg.Claude.Binary, "claude.binary"); err != nil {
 		return err
 	}
-	for name, bot := range cfg.Bots {
+	for name, bot := range cfg.TelegramBots {
 		for uid, u := range bot.Users {
 			label := fmt.Sprintf("bot %q, user %d: working_dir", name, uid)
 			if err := checkDirExists(u.WorkingDir, label); err != nil {

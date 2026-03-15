@@ -1,5 +1,6 @@
 /agent-chat-bridge
-/telebridge
 .env
+config.yaml
 *.json
 !package.json
+configs/*.yaml

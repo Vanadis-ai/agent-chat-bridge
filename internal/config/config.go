@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -11,7 +10,7 @@ import (
 // Config is the top-level application configuration.
 type Config struct {
 	Claude ClaudeConfig         `yaml:"claude"`
-	Bots   map[string]BotConfig `yaml:"bots"`
+	TelegramBots map[string]BotConfig `yaml:"telegram_bots"`
 }
 
 // ClaudeConfig holds settings for the Claude CLI binary.
@@ -21,12 +20,21 @@ type ClaudeConfig struct {
 	MaxConcurrent  int    `yaml:"max_concurrent"`
 }
 
+// AgentConfig defines a custom Claude agent for the bot.
+type AgentConfig struct {
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description"`
+	Prompt      string   `yaml:"prompt"`
+	Tools       []string `yaml:"tools"`
+}
+
 // BotConfig defines a single Telegram bot.
 type BotConfig struct {
 	Token              string                `yaml:"token"`
 	Model              string                `yaml:"model"`
 	PermissionMode     string                `yaml:"permission_mode"`
 	AppendSystemPrompt string                `yaml:"append_system_prompt"`
+	Agent              *AgentConfig          `yaml:"agent"`
 	Sessions           string                `yaml:"sessions"`
 	Users              map[int64]*UserConfig `yaml:"users"`
 }
@@ -51,7 +59,6 @@ func Load(path string) (*Config, error) {
 	}
 
 	applyDefaults(&cfg)
-	applyEnvOverrides(&cfg)
 	resolvePaths(&cfg)
 
 	if err := validate(&cfg); err != nil {
@@ -61,12 +68,3 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func applyEnvOverrides(cfg *Config) {
-	for name, bot := range cfg.Bots {
-		envKey := "TELEBRIDGE_" + strings.ToUpper(name) + "_TOKEN"
-		if val := os.Getenv(envKey); val != "" {
-			bot.Token = val
-			cfg.Bots[name] = bot
-		}
-	}
-}

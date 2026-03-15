@@ -182,6 +182,7 @@ func (b *Bot) runClaude(chatID, userID int64, prompt string, userCfg *config.Use
 		SessionID:      b.sessions.Get(userID),
 		CLIPath:        b.claude.Binary,
 		TimeoutMinutes: b.claude.TimeoutMinutes,
+		Agent:          mapAgent(b.config.Agent),
 	}
 
 	result, err := claude.Run(ctx, cfg, deltaCh)
@@ -210,6 +211,18 @@ func (b *Bot) runClaude(chatID, userID int64, prompt string, userCfg *config.Use
 		"cost_usd", result.CostUSD,
 		"turns", result.NumTurns,
 	)
+}
+
+func mapAgent(ac *config.AgentConfig) *claude.AgentDef {
+	if ac == nil {
+		return nil
+	}
+	return &claude.AgentDef{
+		Name:        ac.Name,
+		Description: ac.Description,
+		Prompt:      ac.Prompt,
+		Tools:       ac.Tools,
+	}
 }
 
 func messageType(msg *tgbotapi.Message) string {

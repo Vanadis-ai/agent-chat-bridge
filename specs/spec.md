@@ -1,4 +1,4 @@
-# Telebridge Specification
+# Agent Chat Bridge Specification
 
 ## Purpose
 
@@ -37,9 +37,9 @@ claude:
   timeout_minutes: 10                       # OPTIONAL - per-request timeout, default: 10
   max_concurrent: 5                         # OPTIONAL - global max concurrent Claude processes, default: 5
 
-bots:
+telegram_bots:
   obsidian:                                  # bot name (alphanumeric + underscore)
-    token: "BOT_TOKEN_1"                     # REQUIRED - Telegram Bot API token
+    token: "123456:ABC-bot-token"            # REQUIRED - Telegram Bot API token
     model: "opus"                            # OPTIONAL - model alias or full name
     permission_mode: "bypassPermissions"     # OPTIONAL - default: bypassPermissions
     append_system_prompt: "You work with Obsidian vault..."  # OPTIONAL
@@ -49,26 +49,39 @@ bots:
         working_dir: "/path/to/vault"        # REQUIRED - CWD for claude process
         voice_dir: "voice_inbox"             # OPTIONAL - default: voice_inbox (relative to working_dir)
         files_dir: "files_inbox"             # OPTIONAL - default: files_inbox (relative to working_dir)
-      987654321:
-        working_dir: "/path/to/other/vault"
 
   translator:
-    token: "BOT_TOKEN_2"
+    token: "654321:DEF-bot-token"
     model: "sonnet"
     permission_mode: "plan"
-    append_system_prompt: "You are a translator. No tools needed."
-    sessions: "translator_sessions.json"
+    agent:                                    # OPTIONAL - custom Claude agent definition
+      name: "translator"                     # REQUIRED if agent is set
+      description: "Translates text"         # REQUIRED if agent is set
+      prompt: "You are a translator."        # REQUIRED if agent is set
+      tools: []                              # OPTIONAL - nil=defaults, []=none, [Read,Bash]=only listed
     users:
       123456789:
         working_dir: "/path/to/translations"
 ```
 
-The `bots` section defines one or more Telegram bots. Each bot has a unique name (used as identifier in logs and environment variable overrides), its own Telegram token, Claude CLI settings, and a `users` map. The `users` map within each bot serves a dual purpose: it defines the whitelist of authorized Telegram user IDs and configures per-user settings. Each user MUST have a `working_dir`. The `voice_dir` and `files_dir` are optional -- when omitted, they default to `voice_inbox` and `files_inbox` subdirectories inside the user's `working_dir`. Both relative (resolved from `working_dir`) and absolute paths are supported.
+The `telegram_bots` section defines one or more Telegram bots. Each bot has a unique name (used as identifier in logs), its own Telegram token, Claude CLI settings, and a `users` map. The `users` map within each bot serves a dual purpose: it defines the whitelist of authorized Telegram user IDs and configures per-user settings. Each user MUST have a `working_dir`. The `voice_dir` and `files_dir` are optional -- when omitted, they default to `voice_inbox` and `files_inbox` subdirectories inside the user's `working_dir`. Both relative (resolved from `working_dir`) and absolute paths are supported.
 
-### Scenario: Environment variable override for token
-- **GIVEN** the environment variable `TELEBRIDGE_OBSIDIAN_TOKEN` is set (pattern: `TELEBRIDGE_<BOT_NAME>_TOKEN`, uppercased)
+Bot tokens are stored directly in the config file. The config file MUST be gitignored to prevent token exposure.
+
+### Scenario: Agent mode
+- **GIVEN** a bot has an `agent` section with `name`, `description`, and `prompt`
+- **WHEN** Claude CLI is invoked for this bot
+- **THEN** it SHALL run in the specified agent mode with the agent's system prompt and tool restrictions
+
+### Scenario: Agent and append_system_prompt are mutually exclusive
+- **GIVEN** a bot has both `agent` and `append_system_prompt` defined
 - **WHEN** the application loads configuration
-- **THEN** the environment variable value SHALL override the `bots.obsidian.token` from the YAML file
+- **THEN** it SHALL exit with an error indicating they are mutually exclusive
+
+### Scenario: Agent tool restrictions
+- **GIVEN** a bot has `agent.tools` set
+- **WHEN** Claude CLI is invoked
+- **THEN** `tools` not specified means default tools are available, `tools: []` disables all tools, and `tools: [Read, Bash]` enables only the listed tools
 
 ### Scenario: Claude binary validation
 - **GIVEN** the configured `claude.binary` path
@@ -218,7 +231,7 @@ Each bot SHALL support the `/start` command as the initial greeting.
 ### Scenario: Authorized user sends /start
 - **GIVEN** user is in this bot's `users`
 - **WHEN** they send `/start`
-- **THEN** the bot responds with: "Telebridge active. Send a message to start a conversation with Claude. Use /help for available commands."
+- **THEN** the bot responds with: "Agent Chat Bridge active. Send a message to start a conversation with Claude. Use /help for available commands."
 
 ### Scenario: Authorized user sends /start with existing session
 - **GIVEN** user already has an active session with this bot

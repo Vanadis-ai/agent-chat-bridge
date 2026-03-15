@@ -21,7 +21,7 @@ func validMinimalYAML() string {
 	return `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   obsidian:
     token: "tok123"
     users:
@@ -36,7 +36,7 @@ claude:
   binary: "/usr/local/bin/claude"
   timeout_minutes: 15
   max_concurrent: 3
-bots:
+telegram_bots:
   obsidian:
     token: "tok_obs"
     model: "opus"
@@ -73,7 +73,7 @@ func assertClaudeConfig(t *testing.T, cfg *Config) {
 
 func assertBotConfig(t *testing.T, cfg *Config) {
 	t.Helper()
-	bot := cfg.Bots["obsidian"]
+	bot := cfg.TelegramBots["obsidian"]
 	if bot.Token != "tok_obs" {
 		t.Errorf("token = %q", bot.Token)
 	}
@@ -112,7 +112,7 @@ func TestValidMinimalConfig(t *testing.T) {
 		t.Errorf("max_concurrent = %d, want 5", cfg.Claude.MaxConcurrent)
 	}
 
-	bot := cfg.Bots["obsidian"]
+	bot := cfg.TelegramBots["obsidian"]
 	if bot.PermissionMode != "bypassPermissions" {
 		t.Errorf("permission_mode = %q", bot.PermissionMode)
 	}
@@ -152,22 +152,11 @@ func TestInvalidYAML(t *testing.T) {
 	}
 }
 
-func TestEnvVarOverride(t *testing.T) {
-	t.Setenv("TELEBRIDGE_OBSIDIAN_TOKEN", "override_token")
-	cfg, err := Load(writeConfig(t, validMinimalYAML()))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Bots["obsidian"].Token != "override_token" {
-		t.Errorf("token = %q, want override_token", cfg.Bots["obsidian"].Token)
-	}
-}
-
 func TestRelativePathResolution(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   test:
     token: "tok"
     users:
@@ -179,8 +168,8 @@ bots:
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Bots["test"].Users[1].VoiceDir != "/home/user/inbox" {
-		t.Errorf("voice_dir = %q", cfg.Bots["test"].Users[1].VoiceDir)
+	if cfg.TelegramBots["test"].Users[1].VoiceDir != "/home/user/inbox" {
+		t.Errorf("voice_dir = %q", cfg.TelegramBots["test"].Users[1].VoiceDir)
 	}
 }
 
@@ -188,7 +177,7 @@ func TestAbsolutePathPreserved(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
-bots:
+telegram_bots:
   test:
     token: "tok"
     users:
@@ -200,8 +189,8 @@ bots:
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Bots["test"].Users[1].VoiceDir != "/tmp/voice" {
-		t.Errorf("voice_dir = %q", cfg.Bots["test"].Users[1].VoiceDir)
+	if cfg.TelegramBots["test"].Users[1].VoiceDir != "/tmp/voice" {
+		t.Errorf("voice_dir = %q", cfg.TelegramBots["test"].Users[1].VoiceDir)
 	}
 }
 
@@ -210,7 +199,7 @@ func TestDefaultSessionsFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Bots["obsidian"].Sessions != "obsidian_sessions.json" {
-		t.Errorf("sessions = %q", cfg.Bots["obsidian"].Sessions)
+	if cfg.TelegramBots["obsidian"].Sessions != "obsidian_sessions.json" {
+		t.Errorf("sessions = %q", cfg.TelegramBots["obsidian"].Sessions)
 	}
 }
