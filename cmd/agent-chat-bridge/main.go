@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -17,7 +18,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "configs/config.yaml", "path to config file")
+	configPath := flag.String("config", defaultConfigPath(), "path to config file")
 	pidFile := flag.String("pidfile", "", "write PID to this file")
 	debug := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()
@@ -45,6 +46,17 @@ func main() {
 
 	bots := startBots(ctx, cfg)
 	waitForShutdown(cancel, bots)
+}
+
+func defaultConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		xdg := filepath.Join(home, ".config", "agent-chat-bridge", "config.yaml")
+		if _, err := os.Stat(xdg); err == nil {
+			return xdg
+		}
+	}
+	return "configs/config.yaml"
 }
 
 func startBots(ctx context.Context, cfg *config.Config) []*bot.Bot {
