@@ -8,16 +8,49 @@ import (
 )
 
 // Config is the top-level application configuration.
+// Supports both new format (Backends/Frontends/Plugins) and legacy (Claude/TelegramBots).
 type Config struct {
-	Claude ClaudeConfig         `yaml:"claude"`
+	// New format
+	Backends  map[string]BackendConfig  `yaml:"backends"`
+	Frontends map[string]FrontendConfig `yaml:"frontends"`
+	Plugins   []PluginConfig            `yaml:"plugins"`
+
+	// Legacy format (auto-converted to new format by Load)
+	Claude       ClaudeConfig         `yaml:"claude"`
 	TelegramBots map[string]BotConfig `yaml:"telegram_bots"`
+}
+
+// BackendConfig defines an LLM backend.
+type BackendConfig struct {
+	Type           string `yaml:"type"`
+	Binary         string `yaml:"binary"`
+	TimeoutMinutes int    `yaml:"timeout_minutes"`
+}
+
+// FrontendConfig defines a chat frontend.
+type FrontendConfig struct {
+	Type               string                `yaml:"type"`
+	Backend            string                `yaml:"backend"`
+	Token              string                `yaml:"token"`
+	Model              string                `yaml:"model"`
+	PermissionMode     string                `yaml:"permission_mode"`
+	AppendSystemPrompt string                `yaml:"append_system_prompt"`
+	Agent              *AgentConfig          `yaml:"agent"`
+	Sessions           string                `yaml:"sessions"`
+	Users              map[int64]*UserConfig `yaml:"users"`
+}
+
+// PluginConfig defines a plugin entry.
+type PluginConfig struct {
+	Name    string         `yaml:"name"`
+	Enabled bool           `yaml:"enabled"`
+	Config  map[string]any `yaml:"config"`
 }
 
 // ClaudeConfig holds settings for the Claude CLI binary.
 type ClaudeConfig struct {
 	Binary         string `yaml:"binary"`
 	TimeoutMinutes int    `yaml:"timeout_minutes"`
-	MaxConcurrent  int    `yaml:"max_concurrent"`
 }
 
 // AgentConfig defines a custom Claude agent for the bot.
@@ -28,7 +61,7 @@ type AgentConfig struct {
 	Tools       []string `yaml:"tools"`
 }
 
-// BotConfig defines a single Telegram bot.
+// BotConfig defines a single Telegram bot (legacy format).
 type BotConfig struct {
 	Token              string                `yaml:"token"`
 	Model              string                `yaml:"model"`
@@ -47,6 +80,8 @@ type UserConfig struct {
 }
 
 // Load reads and validates a config file at the given path.
+// Supports both legacy and new config formats. Legacy format is auto-detected
+// and converted to the new format transparently.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -58,6 +93,10 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
+	if cfg.Backends == nil {
+		convertLegacy(&cfg)
+	}
+
 	applyDefaults(&cfg)
 	resolvePaths(&cfg)
 
@@ -67,4 +106,3 @@ func Load(path string) (*Config, error) {
 
 	return &cfg, nil
 }
-

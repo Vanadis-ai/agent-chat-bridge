@@ -156,7 +156,6 @@ telegram_bots:
 
 All optional fields will use defaults:
 - `claude.timeout_minutes`: 10
-- `claude.max_concurrent`: 5
 - `telegram_bots.*.model`: Claude CLI default
 - `telegram_bots.*.permission_mode`: bypassPermissions
 - `telegram_bots.*.sessions`: `<bot_name>_sessions.json`
@@ -199,9 +198,8 @@ If the process crashes, it must be restarted manually (or by a process superviso
 2. Check storage quota (10 GB limit per user per bot)
 3. Check logs for "Failed to save file" errors
 
-### "System is busy" response
+### "Previous request is still running" response
 
-Global concurrency limit reached (`claude.max_concurrent`). Either:
-- Wait for running requests to finish
-- Increase `max_concurrent` in config (requires restart)
-- Use `/stop` on idle requests
+Per-user concurrency limit. Either:
+- Wait for the running request to finish
+- Use `/stop` to cancel it

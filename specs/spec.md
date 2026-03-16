@@ -35,7 +35,6 @@ The configuration file SHALL contain the following sections:
 claude:
   binary: "/Users/alter/.local/bin/claude"  # REQUIRED - path to claude CLI
   timeout_minutes: 10                       # OPTIONAL - per-request timeout, default: 10
-  max_concurrent: 5                         # OPTIONAL - global max concurrent Claude processes, default: 5
 
 telegram_bots:
   obsidian:                                  # bot name (alphanumeric + underscore)
@@ -881,23 +880,9 @@ The system SHALL use the following log levels:
 
 # 13. Concurrency
 
-## Requirement: Global Concurrency Limit
-
-The system SHALL enforce a global maximum number of concurrent Claude CLI processes across all bots, configured via `claude.max_concurrent` (default: 5). This prevents overloading the local machine.
-
-### Scenario: Global limit reached
-- **GIVEN** 5 Claude processes are already running (the configured max)
-- **WHEN** a new user sends a message to any bot
-- **THEN** the bot responds with "System is busy, try again later." and does NOT spawn a new process
-
-### Scenario: Global limit implementation
-- **GIVEN** the system needs to enforce the global limit
-- **WHEN** a new request arrives
-- **THEN** a shared semaphore (buffered channel of size `max_concurrent`) is used to gate process spawning
-
 ## Requirement: Per-Bot-Per-User Request Isolation
 
-The system SHALL handle requests from multiple bots and users concurrently. Each bot limits each user to one active request, but a user MAY have concurrent active requests on different bots. Both the per-user limit and the global limit must be satisfied before spawning a process.
+The system SHALL handle requests from multiple bots and users concurrently. Each bot limits each user to one active request, but a user MAY have concurrent active requests on different bots.
 
 ### Scenario: Two users send messages to the same bot simultaneously
 - **GIVEN** user A and user B both send messages to bot "obsidian" at the same time

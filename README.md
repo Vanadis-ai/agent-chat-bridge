@@ -124,7 +124,6 @@ The `permission_mode` field controls how Claude Code handles tool approvals:
 |-------|----------|---------|-------------|
 | `claude.binary` | yes | -- | Path to Claude Code CLI |
 | `claude.timeout_minutes` | no | 10 | Per-request timeout |
-| `claude.max_concurrent` | no | 5 | Max parallel Claude processes |
 | `telegram_bots.<name>.token` | yes | -- | Telegram Bot API token |
 | `telegram_bots.<name>.model` | no | CLI default | Model alias or full name |
 | `telegram_bots.<name>.permission_mode` | no | bypassPermissions | See table above |
