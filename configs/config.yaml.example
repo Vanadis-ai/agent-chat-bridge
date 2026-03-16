@@ -1,11 +1,17 @@
-claude:
-  binary: "/usr/local/bin/claude"
-  timeout_minutes: 10
-  max_concurrent: 5
+# New format -- explicit backends, frontends, and plugins sections.
+# For legacy format (claude + telegram_bots), see below.
 
-telegram_bots:
+backends:
+  claude_main:
+    type: claude
+    binary: "/usr/local/bin/claude"
+    timeout_minutes: 10
+
+frontends:
   # Standard bot with system prompt and full tool access
   assistant:
+    type: telegram
+    backend: claude_main
     token: "123456:ABC-your-bot-token"
     model: "opus"
     permission_mode: "bypassPermissions"
@@ -18,6 +24,8 @@ telegram_bots:
 
   # Agent bot with restricted tools
   translator:
+    type: telegram
+    backend: claude_main
     token: "654321:DEF-your-bot-token"
     model: "sonnet"
     permission_mode: "plan"
@@ -29,3 +37,26 @@ telegram_bots:
     users:
       123456789:
         working_dir: "/home/user/translations"
+
+plugins:
+  - name: request_logger
+    enabled: false
+    config:
+      log_file: "/tmp/requests.log"
+
+# -------------------------------------------------------------------
+# Legacy format (still supported, auto-converted on load):
+#
+# claude:
+#   binary: "/usr/local/bin/claude"
+#   timeout_minutes: 10
+#
+# telegram_bots:
+#   assistant:
+#     token: "123456:ABC-your-bot-token"
+#     model: "opus"
+#     permission_mode: "bypassPermissions"
+#     append_system_prompt: "You work with an Obsidian vault."
+#     users:
+#       123456789:
+#         working_dir: "/home/user/vault"

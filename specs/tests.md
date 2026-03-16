@@ -22,7 +22,7 @@ Package: `internal/config`
 ### Test: Valid minimal config
 - **GIVEN** a YAML file with only required fields (claude.binary, one bot with token and one user with working_dir)
 - **WHEN** `Load()` is called
-- **THEN** defaults are applied: timeout_minutes=10, max_concurrent=5, permission_mode=bypassPermissions, voice_dir=voice_inbox, files_dir=files_inbox, sessions=<bot_name>_sessions.json
+- **THEN** defaults are applied: timeout_minutes=10, permission_mode=bypassPermissions, voice_dir=voice_inbox, files_dir=files_inbox, sessions=<bot_name>_sessions.json
 
 ### Test: Missing config file
 - **GIVEN** a non-existent file path

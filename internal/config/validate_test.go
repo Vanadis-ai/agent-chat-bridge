@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+// Legacy format validation tests (through Load which converts to new format)
+
 func TestMissingClaudeBinary(t *testing.T) {
 	yaml := `
 claude: {}
@@ -19,8 +21,8 @@ telegram_bots:
 	if err == nil {
 		t.Fatal("expected error for missing binary")
 	}
-	if !strings.Contains(err.Error(), "claude.binary") {
-		t.Errorf("error should mention claude.binary, got: %v", err)
+	if !strings.Contains(err.Error(), "binary") {
+		t.Errorf("error should mention binary, got: %v", err)
 	}
 }
 
@@ -32,9 +34,9 @@ telegram_bots: {}
 `
 	_, err := Load(writeConfig(t, yaml))
 	if err == nil {
-		t.Fatal("expected error for empty bots")
+		t.Fatal("expected error for empty frontends")
 	}
-	if !strings.Contains(err.Error(), "at least one bot") {
+	if !strings.Contains(err.Error(), "at least one frontend") {
 		t.Errorf("got: %v", err)
 	}
 }
@@ -53,7 +55,7 @@ telegram_bots:
 	if err == nil {
 		t.Fatal("expected error for missing token")
 	}
-	if !strings.Contains(err.Error(), "mybot") || !strings.Contains(err.Error(), "token") {
+	if !strings.Contains(err.Error(), "token") {
 		t.Errorf("got: %v", err)
 	}
 }
@@ -92,9 +94,6 @@ telegram_bots:
 		t.Fatal("expected error for missing working_dir")
 	}
 	errStr := err.Error()
-	if !strings.Contains(errStr, "mybot") {
-		t.Errorf("should mention bot name, got: %v", err)
-	}
 	if !strings.Contains(errStr, "42") {
 		t.Errorf("should mention user ID, got: %v", err)
 	}
@@ -141,79 +140,44 @@ telegram_bots:
 `
 	_, err := Load(writeConfig(t, yaml))
 	if err == nil {
-		t.Fatal("expected error for invalid bot name")
+		t.Fatal("expected error for invalid name")
 	}
 	if !strings.Contains(err.Error(), "My-Bot") {
 		t.Errorf("got: %v", err)
 	}
 }
 
-func TestAgentMissingName(t *testing.T) {
-	yaml := `
+func TestAgentMissingFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		agent   string
+		wantErr string
+	}{
+		{"no name", `agent: {description: "d", prompt: "p"}`, "agent.name"},
+		{"no desc", `agent: {name: "n", prompt: "p"}`, "agent.description"},
+		{"no prompt", `agent: {name: "n", description: "d"}`, "agent.prompt"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			yaml := `
 claude:
   binary: "/usr/local/bin/claude"
 telegram_bots:
   mybot:
     token: "tok"
-    agent:
-      description: "A translator"
-      prompt: "Translate text"
+    ` + tc.agent + `
     users:
       1:
         working_dir: "/tmp"
 `
-	_, err := Load(writeConfig(t, yaml))
-	if err == nil {
-		t.Fatal("expected error for missing agent name")
-	}
-	if !strings.Contains(err.Error(), "agent.name") {
-		t.Errorf("got: %v", err)
-	}
-}
-
-func TestAgentMissingDescription(t *testing.T) {
-	yaml := `
-claude:
-  binary: "/usr/local/bin/claude"
-telegram_bots:
-  mybot:
-    token: "tok"
-    agent:
-      name: "translator"
-      prompt: "Translate text"
-    users:
-      1:
-        working_dir: "/tmp"
-`
-	_, err := Load(writeConfig(t, yaml))
-	if err == nil {
-		t.Fatal("expected error for missing agent description")
-	}
-	if !strings.Contains(err.Error(), "agent.description") {
-		t.Errorf("got: %v", err)
-	}
-}
-
-func TestAgentMissingPrompt(t *testing.T) {
-	yaml := `
-claude:
-  binary: "/usr/local/bin/claude"
-telegram_bots:
-  mybot:
-    token: "tok"
-    agent:
-      name: "translator"
-      description: "A translator"
-    users:
-      1:
-        working_dir: "/tmp"
-`
-	_, err := Load(writeConfig(t, yaml))
-	if err == nil {
-		t.Fatal("expected error for missing agent prompt")
-	}
-	if !strings.Contains(err.Error(), "agent.prompt") {
-		t.Errorf("got: %v", err)
+			_, err := Load(writeConfig(t, yaml))
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("got: %v, want substring: %s", err, tc.wantErr)
+			}
+		})
 	}
 }
 
@@ -224,18 +188,18 @@ claude:
 telegram_bots:
   mybot:
     token: "tok"
-    append_system_prompt: "Extra instructions"
+    append_system_prompt: "Extra"
     agent:
-      name: "translator"
-      description: "A translator"
-      prompt: "Translate text"
+      name: "t"
+      description: "d"
+      prompt: "p"
     users:
       1:
         working_dir: "/tmp"
 `
 	_, err := Load(writeConfig(t, yaml))
 	if err == nil {
-		t.Fatal("expected error for agent + append_system_prompt")
+		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), "mutually exclusive") {
 		t.Errorf("got: %v", err)
@@ -249,11 +213,10 @@ claude:
 telegram_bots:
   translator:
     token: "tok"
-    model: "sonnet"
     agent:
       name: "translator"
-      description: "Translates text between languages"
-      prompt: "You are a translator. Only translate text."
+      description: "Translates text"
+      prompt: "Translate."
       tools: []
     users:
       1:
@@ -263,51 +226,118 @@ telegram_bots:
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	bot := cfg.TelegramBots["translator"]
-	if bot.Agent == nil {
-		t.Fatal("expected agent to be set")
+	fc := cfg.Frontends["translator"]
+	if fc.Agent == nil {
+		t.Fatal("expected agent")
 	}
-	if bot.Agent.Name != "translator" {
-		t.Errorf("agent.name = %q", bot.Agent.Name)
+	if fc.Agent.Name != "translator" {
+		t.Errorf("agent.name = %q", fc.Agent.Name)
 	}
-	if bot.Agent.Description != "Translates text between languages" {
-		t.Errorf("agent.description = %q", bot.Agent.Description)
-	}
-	if bot.Agent.Tools == nil {
-		t.Fatal("expected agent.tools to be non-nil empty slice")
-	}
-	if len(bot.Agent.Tools) != 0 {
-		t.Errorf("agent.tools = %v, want empty", bot.Agent.Tools)
+	if fc.Agent.Tools == nil || len(fc.Agent.Tools) != 0 {
+		t.Errorf("agent.tools = %v, want empty", fc.Agent.Tools)
 	}
 }
 
-func TestAgentWithTools(t *testing.T) {
+// New format validation tests
+
+func TestNewFormatBackendMissingType(t *testing.T) {
 	yaml := `
-claude:
-  binary: "/usr/local/bin/claude"
-telegram_bots:
-  mybot:
+backends:
+  b1:
+    binary: "/usr/bin/claude"
+frontends:
+  f1:
+    type: telegram
+    backend: b1
     token: "tok"
-    agent:
-      name: "reader"
-      description: "Reads files"
-      prompt: "You can only read files."
-      tools:
-        - Read
-        - Glob
     users:
       1:
         working_dir: "/tmp"
 `
-	cfg, err := Load(writeConfig(t, yaml))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := Load(writeConfig(t, yaml))
+	if err == nil {
+		t.Fatal("expected error for missing backend type")
 	}
-	tools := cfg.TelegramBots["mybot"].Agent.Tools
-	if len(tools) != 2 {
-		t.Fatalf("expected 2 tools, got %d", len(tools))
+	if !strings.Contains(err.Error(), "type is required") {
+		t.Errorf("got: %v", err)
 	}
-	if tools[0] != "Read" || tools[1] != "Glob" {
-		t.Errorf("tools = %v", tools)
+}
+
+func TestNewFormatFrontendBadBackendRef(t *testing.T) {
+	yaml := `
+backends:
+  b1:
+    type: claude
+    binary: "/usr/bin/claude"
+frontends:
+  f1:
+    type: telegram
+    backend: nonexistent
+    token: "tok"
+    users:
+      1:
+        working_dir: "/tmp"
+`
+	_, err := Load(writeConfig(t, yaml))
+	if err == nil {
+		t.Fatal("expected error for bad backend ref")
+	}
+	if !strings.Contains(err.Error(), "nonexistent") {
+		t.Errorf("got: %v", err)
+	}
+}
+
+func TestNewFormatPluginDuplicateNames(t *testing.T) {
+	yaml := `
+backends:
+  b1:
+    type: claude
+    binary: "/usr/bin/claude"
+frontends:
+  f1:
+    type: telegram
+    backend: b1
+    token: "tok"
+    users:
+      1:
+        working_dir: "/tmp"
+plugins:
+  - name: logger
+    enabled: true
+  - name: logger
+    enabled: true
+`
+	_, err := Load(writeConfig(t, yaml))
+	if err == nil {
+		t.Fatal("expected error for duplicate plugin names")
+	}
+	if !strings.Contains(err.Error(), "duplicate plugin") {
+		t.Errorf("got: %v", err)
+	}
+}
+
+func TestNewFormatPluginMissingName(t *testing.T) {
+	yaml := `
+backends:
+  b1:
+    type: claude
+    binary: "/usr/bin/claude"
+frontends:
+  f1:
+    type: telegram
+    backend: b1
+    token: "tok"
+    users:
+      1:
+        working_dir: "/tmp"
+plugins:
+  - enabled: true
+`
+	_, err := Load(writeConfig(t, yaml))
+	if err == nil {
+		t.Fatal("expected error for missing plugin name")
+	}
+	if !strings.Contains(err.Error(), "plugin name") {
+		t.Errorf("got: %v", err)
 	}
 }

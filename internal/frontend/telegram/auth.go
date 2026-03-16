@@ -1,4 +1,4 @@
-package bot
+package telegram
 
 import "github.com/vanadis-ai/agent-chat-bridge/internal/config"
 
@@ -8,7 +8,7 @@ type AuthResult struct {
 	Authorized bool
 }
 
-// IsAuthorized checks if a user ID exists in the bot's user map.
+// IsAuthorized checks if a user ID exists in the users map.
 func IsAuthorized(users map[int64]*config.UserConfig, userID int64) AuthResult {
 	u, ok := users[userID]
 	if !ok {

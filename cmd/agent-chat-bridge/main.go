@@ -12,9 +12,11 @@ import (
 	"syscall"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/vanadis-ai/agent-chat-bridge/internal/bot"
-	"github.com/vanadis-ai/agent-chat-bridge/internal/claude"
+	claude "github.com/vanadis-ai/agent-chat-bridge/internal/backend/claude"
 	"github.com/vanadis-ai/agent-chat-bridge/internal/config"
+	"github.com/vanadis-ai/agent-chat-bridge/internal/core"
+	"github.com/vanadis-ai/agent-chat-bridge/internal/frontend/telegram"
+	"github.com/vanadis-ai/agent-chat-bridge/internal/plugin"
 )
 
 func main() {
@@ -27,25 +29,51 @@ func main() {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	}
 
-	if *pidFile != "" {
-		if err := os.WriteFile(*pidFile, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
-			slog.Error("failed to write pidfile", "error", err)
-			os.Exit(1)
-		}
-		defer os.Remove(*pidFile)
-	}
-
-	cfg, err := config.Load(*configPath)
-	if err != nil {
-		slog.Error("failed to load config", "error", err)
+	if err := run(*configPath, *pidFile); err != nil {
+		slog.Error("fatal", "error", err)
 		os.Exit(1)
 	}
+}
+
+func run(configPath, pidFile string) error {
+	if pidFile != "" {
+		if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+			return fmt.Errorf("write pidfile: %w", err)
+		}
+		defer os.Remove(pidFile)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	sessions := buildSessions(cfg.Frontends)
+	backends := buildBackends(cfg.Backends)
+	routing := buildRouting(cfg.Frontends)
+
+	plugins, err := plugin.LoadPlugins(cfg.Plugins)
+	if err != nil {
+		return fmt.Errorf("load plugins: %w", err)
+	}
+
+	bridge := core.NewBridge(routing, backends, plugins, sessions)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bots := startBots(ctx, cfg)
-	waitForShutdown(cancel, bots)
+	frontends := startFrontends(ctx, cfg.Frontends, bridge)
+	if len(frontends) == 0 {
+		return fmt.Errorf("no frontends started")
+	}
+
+	errCh := make(chan error, len(frontends))
+	launchFrontends(ctx, frontends, bridge, errCh)
+
+	go watchFailures(errCh, len(frontends), cancel)
+
+	waitForShutdown(ctx, cancel, frontends)
+	return nil
 }
 
 func defaultConfigPath() string {
@@ -59,41 +87,130 @@ func defaultConfigPath() string {
 	return "configs/config.yaml"
 }
 
-func startBots(ctx context.Context, cfg *config.Config) []*bot.Bot {
-	var bots []*bot.Bot
-
-	for name, botCfg := range cfg.TelegramBots {
-		api, err := tgbotapi.NewBotAPI(botCfg.Token)
-		if err != nil {
-			slog.Error("failed to create bot API", "bot", name, "error", err)
-			continue
-		}
-		slog.Info("bot authenticated", "name", name, "username", api.Self.UserName)
-
-		sessions := claude.NewSessionStore(botCfg.Sessions)
-		b := bot.NewBot(name, botCfg, cfg.Claude, api, sessions)
-		bots = append(bots, b)
-		go b.Start(ctx)
+func buildSessions(frontends map[string]config.FrontendConfig) map[string]core.SessionStore {
+	sessions := make(map[string]core.SessionStore, len(frontends))
+	for name, fc := range frontends {
+		sessions[name] = core.NewFileSessionStore(fc.Sessions)
 	}
-	return bots
+	return sessions
 }
 
-func waitForShutdown(cancel context.CancelFunc, bots []*bot.Bot) {
+func buildBackends(backends map[string]config.BackendConfig) map[string]core.LLMBackend {
+	result := make(map[string]core.LLMBackend, len(backends))
+	for name, bc := range backends {
+		switch bc.Type {
+		case config.BackendTypeClaude:
+			result[name] = claude.NewClaudeBackend(bc.Binary, bc.TimeoutMinutes)
+		default:
+			slog.Warn("unknown backend type, skipping", "name", name, "type", bc.Type)
+		}
+	}
+	return result
+}
+
+func buildRouting(frontends map[string]config.FrontendConfig) map[string]core.FrontendRouting {
+	routing := make(map[string]core.FrontendRouting, len(frontends))
+	for name, fc := range frontends {
+		routing[name] = core.FrontendRouting{
+			BackendName:    fc.Backend,
+			Model:          fc.Model,
+			PermissionMode: fc.PermissionMode,
+			SystemPrompt:   fc.AppendSystemPrompt,
+			Agent:          mapAgent(fc.Agent),
+		}
+	}
+	return routing
+}
+
+func startFrontends(ctx context.Context, cfgFrontends map[string]config.FrontendConfig, bridge *core.Bridge) []core.ChatFrontend {
+	var frontends []core.ChatFrontend
+	for name, fc := range cfgFrontends {
+		switch fc.Type {
+		case config.FrontendTypeTelegram:
+			fe := createTelegramFrontend(name, fc, bridge)
+			if fe != nil {
+				frontends = append(frontends, fe)
+			}
+		default:
+			slog.Warn("unknown frontend type, skipping", "name", name, "type", fc.Type)
+		}
+	}
+	return frontends
+}
+
+func createTelegramFrontend(name string, fc config.FrontendConfig, bridge *core.Bridge) core.ChatFrontend {
+	api, err := tgbotapi.NewBotAPI(fc.Token)
+	if err != nil {
+		slog.Error("failed to create bot API", "bot", name, "error", err)
+		return nil
+	}
+	slog.Info("bot authenticated", "name", name, "username", api.Self.UserName)
+
+	return telegram.NewFrontend(name, telegram.FrontendConfig{
+		Token: fc.Token,
+		Users: fc.Users,
+	}, api, bridge)
+}
+
+func launchFrontends(ctx context.Context, frontends []core.ChatFrontend, bridge *core.Bridge, errCh chan<- error) {
+	for _, fe := range frontends {
+		h := bridge.Handler(fe.Name())
+		go func(fe core.ChatFrontend, h core.MessageHandler) {
+			if err := fe.Start(ctx, h); err != nil && ctx.Err() == nil {
+				slog.Error("frontend failed", "name", fe.Name(), "error", err)
+				errCh <- err
+			}
+		}(fe, h)
+	}
+}
+
+func watchFailures(errCh <-chan error, total int, cancel context.CancelFunc) {
+	var failCount int
+	for range errCh {
+		failCount++
+		if failCount >= total {
+			slog.Error("all frontends failed, shutting down")
+			cancel()
+			return
+		}
+	}
+}
+
+func waitForShutdown(ctx context.Context, cancel context.CancelFunc, frontends []core.ChatFrontend) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	sig := <-sigCh
-	slog.Info("received signal, shutting down", "signal", sig)
+	select {
+	case sig := <-sigCh:
+		slog.Info("received signal, shutting down", "signal", sig)
+	case <-ctx.Done():
+		slog.Info("context cancelled, shutting down")
+	}
 	cancel()
 
 	var wg sync.WaitGroup
-	for _, b := range bots {
+	for _, fe := range frontends {
 		wg.Add(1)
-		go func(b *bot.Bot) {
+		go func(fe core.ChatFrontend) {
 			defer wg.Done()
-			b.Stop()
-		}(b)
+			if err := fe.Stop(); err != nil {
+				slog.Error("frontend stop error", "name", fe.Name(), "error", err)
+			}
+		}(fe)
 	}
 	wg.Wait()
 	slog.Info("shutdown complete")
 }
+
+func mapAgent(cfg *config.AgentConfig) *core.AgentDef {
+	if cfg == nil {
+		return nil
+	}
+	return &core.AgentDef{
+		Name:        cfg.Name,
+		Description: cfg.Description,
+		Prompt:      cfg.Prompt,
+		Tools:       cfg.Tools,
+	}
+}
+

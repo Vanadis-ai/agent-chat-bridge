@@ -3,22 +3,29 @@ package config
 import "path/filepath"
 
 func applyDefaults(cfg *Config) {
-	if cfg.Claude.TimeoutMinutes == 0 {
-		cfg.Claude.TimeoutMinutes = 10
-	}
-	if cfg.Claude.MaxConcurrent == 0 {
-		cfg.Claude.MaxConcurrent = 5
-	}
+	applyBackendDefaults(cfg.Backends)
+	applyFrontendDefaults(cfg.Frontends)
+}
 
-	for name, bot := range cfg.TelegramBots {
-		if bot.PermissionMode == "" {
-			bot.PermissionMode = "bypassPermissions"
+func applyBackendDefaults(backends map[string]BackendConfig) {
+	for name, bc := range backends {
+		if bc.TimeoutMinutes == 0 {
+			bc.TimeoutMinutes = 10
 		}
-		if bot.Sessions == "" {
-			bot.Sessions = name + "_sessions.json"
+		backends[name] = bc
+	}
+}
+
+func applyFrontendDefaults(frontends map[string]FrontendConfig) {
+	for name, fc := range frontends {
+		if fc.PermissionMode == "" {
+			fc.PermissionMode = "bypassPermissions"
 		}
-		applyUserDefaults(bot.Users)
-		cfg.TelegramBots[name] = bot
+		if fc.Sessions == "" {
+			fc.Sessions = name + "_sessions.json"
+		}
+		applyUserDefaults(fc.Users)
+		frontends[name] = fc
 	}
 }
 
@@ -34,8 +41,8 @@ func applyUserDefaults(users map[int64]*UserConfig) {
 }
 
 func resolvePaths(cfg *Config) {
-	for _, bot := range cfg.TelegramBots {
-		for _, u := range bot.Users {
+	for _, fc := range cfg.Frontends {
+		for _, u := range fc.Users {
 			u.VoiceDir = resolveDir(u.WorkingDir, u.VoiceDir)
 			u.FilesDir = resolveDir(u.WorkingDir, u.FilesDir)
 		}

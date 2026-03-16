@@ -1,4 +1,4 @@
-package bot
+package telegram
 
 import (
 	"log/slog"
@@ -49,12 +49,23 @@ func (s *Streamer) SendInitial() error {
 func (s *Streamer) Append(text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	s.buf.WriteString(text)
-
 	if s.timer == nil {
 		s.timer = time.AfterFunc(editInterval, s.flush)
 	}
+}
+
+// HasContent returns true if any text has been appended to the buffer.
+func (s *Streamer) HasContent() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Len() > 0
+}
+
+// EditPlaceholder replaces the initial "..." message with the given text.
+// Used for error messages or non-streamed responses.
+func (s *Streamer) EditPlaceholder(text string) {
+	s.editMessage(text)
 }
 
 // Finalize sends the final complete message, splitting if needed.
@@ -70,14 +81,11 @@ func (s *Streamer) Finalize() {
 	if fullText == "" {
 		return
 	}
-
 	chunks := formatter.Split(fullText)
 	if len(chunks) == 0 {
 		return
 	}
-
 	s.editMessage(chunks[0])
-
 	for i := 1; i < len(chunks); i++ {
 		s.sendNew(chunks[i])
 	}
@@ -85,22 +93,22 @@ func (s *Streamer) Finalize() {
 
 func (s *Streamer) flush() {
 	s.mu.Lock()
-	text := s.buf.String()
-	textLen := len(text)
-	changed := textLen != s.lastLen
-	s.lastLen = textLen
-	s.timer = nil
-	s.mu.Unlock()
-
-	if !changed || text == "" {
+	currentLen := s.buf.Len()
+	changed := currentLen != s.lastLen
+	if !changed || currentLen == 0 {
+		s.timer = nil
+		s.mu.Unlock()
 		return
 	}
+	text := s.buf.String()
+	s.lastLen = currentLen
+	s.timer = nil
+	s.mu.Unlock()
 
 	display := text
 	if len(display) > maxMsgLen {
 		display = display[len(display)-maxMsgLen:]
 	}
-
 	s.editMessage(display)
 
 	s.mu.Lock()

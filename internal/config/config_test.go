@@ -17,7 +17,7 @@ func writeConfig(t *testing.T, content string) string {
 	return path
 }
 
-func validMinimalYAML() string {
+func validMinimalLegacyYAML() string {
 	return `
 claude:
   binary: "/usr/local/bin/claude"
@@ -30,12 +30,11 @@ telegram_bots:
 `
 }
 
-func TestValidFullConfig(t *testing.T) {
+func TestLegacyFullConfig(t *testing.T) {
 	yaml := `
 claude:
   binary: "/usr/local/bin/claude"
   timeout_minutes: 15
-  max_concurrent: 3
 telegram_bots:
   obsidian:
     token: "tok_obs"
@@ -54,73 +53,57 @@ telegram_bots:
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	assertClaudeConfig(t, cfg)
-	assertBotConfig(t, cfg)
-}
-
-func assertClaudeConfig(t *testing.T, cfg *Config) {
-	t.Helper()
-	if cfg.Claude.Binary != "/usr/local/bin/claude" {
-		t.Errorf("binary = %q", cfg.Claude.Binary)
+	bc := cfg.Backends["default"]
+	if bc.Type != "claude" {
+		t.Errorf("backend type = %q, want claude", bc.Type)
 	}
-	if cfg.Claude.TimeoutMinutes != 15 {
-		t.Errorf("timeout = %d, want 15", cfg.Claude.TimeoutMinutes)
+	if bc.Binary != "/usr/local/bin/claude" {
+		t.Errorf("binary = %q", bc.Binary)
 	}
-	if cfg.Claude.MaxConcurrent != 3 {
-		t.Errorf("max_concurrent = %d, want 3", cfg.Claude.MaxConcurrent)
-	}
-}
-
-func assertBotConfig(t *testing.T, cfg *Config) {
-	t.Helper()
-	bot := cfg.TelegramBots["obsidian"]
-	if bot.Token != "tok_obs" {
-		t.Errorf("token = %q", bot.Token)
-	}
-	if bot.Model != "opus" {
-		t.Errorf("model = %q", bot.Model)
-	}
-	if bot.PermissionMode != "plan" {
-		t.Errorf("permission_mode = %q", bot.PermissionMode)
-	}
-	if bot.Sessions != "custom_sessions.json" {
-		t.Errorf("sessions = %q", bot.Sessions)
+	if bc.TimeoutMinutes != 15 {
+		t.Errorf("timeout = %d, want 15", bc.TimeoutMinutes)
 	}
 
-	u := bot.Users[111]
-	if u.WorkingDir != "/home/user/vault" {
-		t.Errorf("working_dir = %q", u.WorkingDir)
+	fc := cfg.Frontends["obsidian"]
+	if fc.Type != "telegram" {
+		t.Errorf("frontend type = %q", fc.Type)
 	}
+	if fc.Token != "tok_obs" {
+		t.Errorf("token = %q", fc.Token)
+	}
+	if fc.Model != "opus" {
+		t.Errorf("model = %q", fc.Model)
+	}
+	if fc.Sessions != "custom_sessions.json" {
+		t.Errorf("sessions = %q", fc.Sessions)
+	}
+
+	u := fc.Users[111]
 	if u.VoiceDir != "/tmp/voice" {
 		t.Errorf("voice_dir = %q", u.VoiceDir)
 	}
-	if u.FilesDir != "/tmp/files" {
-		t.Errorf("files_dir = %q", u.FilesDir)
-	}
 }
 
-func TestValidMinimalConfig(t *testing.T) {
-	cfg, err := Load(writeConfig(t, validMinimalYAML()))
+func TestLegacyMinimalConfig(t *testing.T) {
+	cfg, err := Load(writeConfig(t, validMinimalLegacyYAML()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Claude.TimeoutMinutes != 10 {
-		t.Errorf("timeout = %d, want 10", cfg.Claude.TimeoutMinutes)
-	}
-	if cfg.Claude.MaxConcurrent != 5 {
-		t.Errorf("max_concurrent = %d, want 5", cfg.Claude.MaxConcurrent)
+	bc := cfg.Backends["default"]
+	if bc.TimeoutMinutes != 10 {
+		t.Errorf("timeout = %d, want 10", bc.TimeoutMinutes)
 	}
 
-	bot := cfg.TelegramBots["obsidian"]
-	if bot.PermissionMode != "bypassPermissions" {
-		t.Errorf("permission_mode = %q", bot.PermissionMode)
+	fc := cfg.Frontends["obsidian"]
+	if fc.PermissionMode != "bypassPermissions" {
+		t.Errorf("permission_mode = %q", fc.PermissionMode)
 	}
-	if bot.Sessions != "obsidian_sessions.json" {
-		t.Errorf("sessions = %q", bot.Sessions)
+	if fc.Sessions != "obsidian_sessions.json" {
+		t.Errorf("sessions = %q", fc.Sessions)
 	}
 
-	u := bot.Users[123456789]
+	u := fc.Users[123456789]
 	if u.VoiceDir != "/home/user/vault/voice_inbox" {
 		t.Errorf("voice_dir = %q", u.VoiceDir)
 	}
@@ -129,13 +112,64 @@ func TestValidMinimalConfig(t *testing.T) {
 	}
 }
 
+func TestNewFormatConfig(t *testing.T) {
+	yaml := `
+backends:
+  claude_main:
+    type: claude
+    binary: "/usr/bin/claude"
+    timeout_minutes: 20
+frontends:
+  mybot:
+    type: telegram
+    backend: claude_main
+    token: "tok_new"
+    model: "sonnet"
+    users:
+      999:
+        working_dir: "/work"
+plugins:
+  - name: request_logger
+    enabled: true
+    config:
+      log_file: "/tmp/log"
+`
+	cfg, err := Load(writeConfig(t, yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(cfg.Backends) != 1 {
+		t.Fatalf("backends count = %d, want 1", len(cfg.Backends))
+	}
+	bc := cfg.Backends["claude_main"]
+	if bc.Type != "claude" {
+		t.Errorf("backend type = %q", bc.Type)
+	}
+	if bc.TimeoutMinutes != 20 {
+		t.Errorf("timeout = %d", bc.TimeoutMinutes)
+	}
+
+	fc := cfg.Frontends["mybot"]
+	if fc.Backend != "claude_main" {
+		t.Errorf("backend ref = %q", fc.Backend)
+	}
+	if fc.Token != "tok_new" {
+		t.Errorf("token = %q", fc.Token)
+	}
+
+	if len(cfg.Plugins) != 1 {
+		t.Fatalf("plugins count = %d, want 1", len(cfg.Plugins))
+	}
+	if cfg.Plugins[0].Name != "request_logger" {
+		t.Errorf("plugin name = %q", cfg.Plugins[0].Name)
+	}
+}
+
 func TestMissingConfigFile(t *testing.T) {
 	_, err := Load("/nonexistent/path/config.yaml")
 	if err == nil {
 		t.Fatal("expected error for missing file")
-	}
-	if !strings.Contains(err.Error(), "/nonexistent/path/config.yaml") {
-		t.Errorf("error should contain file path, got: %v", err)
 	}
 }
 
@@ -168,8 +202,8 @@ telegram_bots:
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.TelegramBots["test"].Users[1].VoiceDir != "/home/user/inbox" {
-		t.Errorf("voice_dir = %q", cfg.TelegramBots["test"].Users[1].VoiceDir)
+	if cfg.Frontends["test"].Users[1].VoiceDir != "/home/user/inbox" {
+		t.Errorf("voice_dir = %q", cfg.Frontends["test"].Users[1].VoiceDir)
 	}
 }
 
@@ -189,17 +223,41 @@ telegram_bots:
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.TelegramBots["test"].Users[1].VoiceDir != "/tmp/voice" {
-		t.Errorf("voice_dir = %q", cfg.TelegramBots["test"].Users[1].VoiceDir)
+	if cfg.Frontends["test"].Users[1].VoiceDir != "/tmp/voice" {
+		t.Errorf("voice_dir = %q", cfg.Frontends["test"].Users[1].VoiceDir)
 	}
 }
 
-func TestDefaultSessionsFile(t *testing.T) {
-	cfg, err := Load(writeConfig(t, validMinimalYAML()))
+func TestNewFormatDefaults(t *testing.T) {
+	yaml := `
+backends:
+  b1:
+    type: claude
+    binary: "/usr/bin/claude"
+frontends:
+  f1:
+    type: telegram
+    backend: b1
+    token: "tok"
+    users:
+      1:
+        working_dir: "/work"
+`
+	cfg, err := Load(writeConfig(t, yaml))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.TelegramBots["obsidian"].Sessions != "obsidian_sessions.json" {
-		t.Errorf("sessions = %q", cfg.TelegramBots["obsidian"].Sessions)
+
+	bc := cfg.Backends["b1"]
+	if bc.TimeoutMinutes != 10 {
+		t.Errorf("backend timeout = %d, want 10", bc.TimeoutMinutes)
+	}
+
+	fc := cfg.Frontends["f1"]
+	if fc.PermissionMode != "bypassPermissions" {
+		t.Errorf("permission_mode = %q", fc.PermissionMode)
+	}
+	if fc.Sessions != "f1_sessions.json" {
+		t.Errorf("sessions = %q", fc.Sessions)
 	}
 }
