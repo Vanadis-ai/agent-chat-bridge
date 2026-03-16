@@ -72,7 +72,7 @@ func run(configPath, pidFile string) error {
 
 	go watchFailures(errCh, len(frontends), cancel)
 
-	waitForShutdown(ctx, cancel, frontends)
+	waitForShutdown(ctx, cancel, frontends, errCh)
 	return nil
 }
 
@@ -176,7 +176,7 @@ func watchFailures(errCh <-chan error, total int, cancel context.CancelFunc) {
 	}
 }
 
-func waitForShutdown(ctx context.Context, cancel context.CancelFunc, frontends []core.ChatFrontend) {
+func waitForShutdown(ctx context.Context, cancel context.CancelFunc, frontends []core.ChatFrontend, errCh chan error) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
@@ -199,6 +199,7 @@ func waitForShutdown(ctx context.Context, cancel context.CancelFunc, frontends [
 		}(fe)
 	}
 	wg.Wait()
+	close(errCh)
 	slog.Info("shutdown complete")
 }
 
